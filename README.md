@@ -26,3 +26,5 @@ A parallel coordinates plot is used to visualize multivariate data ([google imag
 ```
 
 ![parallel datavalues](https://github.com/srosanba/sas-parallelcoordinatesplot/blob/master/img/iris_by_datavalues.png)
+
+See the [wiki](https://github.com/srosanba/sas-parallelcoordinatesplot/wiki) for more details.
