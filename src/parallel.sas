@@ -11,7 +11,6 @@ options nodate nonumber mprint orientation=landscape;
          ,var=
          ,by=
          ,axistype=percentiles
-         ,sgplot=y
          ) / minoperator;
 
    %local i linecolor;
@@ -206,11 +205,24 @@ options nodate nonumber mprint orientation=landscape;
    %end;
 
    %*--- at long last, we plot ---;
-   %let sgplot = %upcase(&sgplot);
-   %if &sgplot = Y %then %do;
-      proc sgplot data=_pcp60 nocycleattrs noautolegend noborder;
-         styleattrs axisextent=data;
-         %*--- primary series plot ---;
+   proc sgplot data=_pcp60 nocycleattrs noautolegend noborder;
+      styleattrs axisextent=data;
+      %*--- primary series plot ---;
+      series x=group y=&yval / 
+         group=series 
+         %if &by ne dummyby %then %do;
+            grouplc=&by
+         %end;
+         lineattrs=(
+            pattern=solid 
+            %if &by eq dummyby %then %do;
+               color=&linecolor
+            %end;
+            )
+         x2axis
+         ;
+      %*--- copy to get y2axis ---;
+      %if &axistype = percentiles %then %do;
          series x=group y=&yval / 
             group=series 
             %if &by ne dummyby %then %do;
@@ -223,41 +235,36 @@ options nodate nonumber mprint orientation=landscape;
                %end;
                )
             x2axis
+            y2axis
             ;
-         %*--- copy to get y2axis ---;
+      %end;
+      %*--- tick values added sans tick marks ---;
+      %if &axistype = datavalues %then %do;
+         text x=xtext y=ytext text=texttext /
+            x2axis
+            backlight=1
+            ;
+      %end;
+      %*--- top axis control ---;
+      x2axis 
+         type=discrete 
+         display=(nolabel noline noticks)
+         grid
+         offsetmin=&offset 
+         offsetmax=&offset
+         ;
+      %*--- make left/right the same ---;
+      yaxis
          %if &axistype = percentiles %then %do;
-            series x=group y=&yval / 
-               group=series 
-               %if &by ne dummyby %then %do;
-                  grouplc=&by
-               %end;
-               lineattrs=(
-                  pattern=solid 
-                  %if &by eq dummyby %then %do;
-                     color=&linecolor
-                  %end;
-                  )
-               x2axis
-               y2axis
-               ;
-         %end;
-         %*--- tick values added sans tick marks ---;
-         %if &axistype = datavalues %then %do;
-            text x=xtext y=ytext text=texttext /
-               x2axis
-               backlight=1
-               ;
-         %end;
-         %*--- top axis control ---;
-         x2axis 
-            type=discrete 
-            display=(nolabel noline noticks)
+            display=(nolabel)
             grid
-            offsetmin=&offset 
-            offsetmax=&offset
-            ;
-         %*--- make left/right the same ---;
-         yaxis
+         %end;
+         %else %if &axistype = datavalues %then %do;
+            display=none
+         %end;
+         ;
+      %if &axistype = percentiles %then %do;
+         y2axis
             %if &axistype = percentiles %then %do;
                display=(nolabel)
                grid
@@ -266,32 +273,21 @@ options nodate nonumber mprint orientation=landscape;
                display=none
             %end;
             ;
-         %if &axistype = percentiles %then %do;
-            y2axis
-               %if &axistype = percentiles %then %do;
-                  display=(nolabel)
-                  grid
-               %end;
-               %else %if &axistype = datavalues %then %do;
-                  display=none
-               %end;
-               ;
-         %end;
-         %*--- reduced version to get a legend ---;
-         %if &by ne dummyby %then %do;
-            series x=groupforlegend y=&yvalforlegend / 
-               group=seriesforlegend 
-               lineattrs=(pattern=1)
-               x2axis
-               name="forlegend"
-               ;
-            keylegend "forlegend" /
-               exclude=(" ")
-               noborder
-               ;
-         %end;
-      run;
-   %end;
+      %end;
+      %*--- reduced version to get a legend ---;
+      %if &by ne dummyby %then %do;
+         series x=groupforlegend y=&yvalforlegend / 
+            group=seriesforlegend 
+            lineattrs=(pattern=1)
+            x2axis
+            name="forlegend"
+            ;
+         keylegend "forlegend" /
+            exclude=(" ")
+            noborder
+            ;
+      %end;
+   run;
 
 %mend parallel;
 
