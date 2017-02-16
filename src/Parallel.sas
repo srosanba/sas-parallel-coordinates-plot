@@ -244,15 +244,6 @@ Example 2:
    run;
 
    %*--- prep for legend ---;
-   %local by_n;
-   proc sql noprint;
-      select   distinct &group
-      into     :by1-
-      from     _pcp30
-      ;
-      %let by_n = &sqlobs;
-   quit;
-
    proc sort data=_pcp30;
       by &group _pcp_series;
    run;
@@ -402,7 +393,7 @@ Example 2:
          %end;
          ;
       %*--- reduced version to get a legend ---;
-      %if &group ne dummygroup %then %do;
+      %if &group ne _pcp_dummygroup %then %do;
          series x=_pcp_varforlegend y=&yvalforlegend / 
             group=_pcp_seriesforlegend 
             lineattrs=(pattern=1)
