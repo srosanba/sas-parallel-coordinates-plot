@@ -15,6 +15,13 @@ ods listing close;
    ,var=sepallength sepalwidth petallength petalwidth
    ,group=species
    );
+ods listing;
 
 filename mprint clear;
 options nomprint nomfile;
+
+/* 
+having captured the sgplot code in mprint.sas, you now paste 
+that code below the macro call and edit away until you achieve 
+the cosmetics that you're looking for.
+*/
