@@ -38,7 +38,7 @@ Example 1:
    %parallel
       (data=sashelp.iris
       ,var=sepallength sepalwidth petallength petalwidth
-      ,by=species
+      ,group=species
       );
    Result for this call:
       https://github.com/srosanba/sas-parallelcoordinatesplot/raw/master/img/iris_by_percentiles.png
@@ -47,7 +47,7 @@ Example 2:
    %parallel
       (data=sashelp.iris
       ,var=sepallength sepalwidth petallength petalwidth
-      ,by=species
+      ,group=species
       ,axistype=datavalues
       );
    Result for this call:
