@@ -8,7 +8,7 @@ A parallel coordinates plot is used to visualize multivariate data ([google imag
 %parallel
    (data=sashelp.iris
    ,var=sepallength sepalwidth petallength petalwidth
-   ,by=species
+   ,group=species
    );
 ```
 
@@ -20,7 +20,7 @@ A parallel coordinates plot is used to visualize multivariate data ([google imag
 %parallel
    (data=sashelp.iris
    ,var=sepallength sepalwidth petallength petalwidth
-   ,by=species
+   ,group=species
    ,axistype=datavalues
    );
 ```
