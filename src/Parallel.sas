@@ -30,6 +30,10 @@ Optional parmeters:
                for each variable. Tick values for each variable are 
                overlayed on top of the lines using the backlight option
                of the text statement.
+   sgplotout=  Sends SGPLOT code to specified location.
+               E.g., sgplotout=C:/temp/sgplot4parallel.sas
+               DETAILS: Hijacks MPRINT and MFILE. Do not attempt to use
+               these global options if using the sgplotout parameter.
    debug    =  To debug or not to debug...
                VALID: yes|no
                DEFAULT: no
@@ -60,6 +64,7 @@ Example 2:
          ,var=
          ,group=
          ,axistype=percentiles
+         ,sgplotout=
          ,debug=no
          ) / minoperator;
 
@@ -80,8 +85,7 @@ Example 2:
       %put %str(W)ARNING: unexpected value of &=axistype;
       
    %*--- bookkeeping ---;
-   %local i linecolor;
-   %let linecolor = cx2A25D9;
+   %local i;
    %if &group = %str() %then
       %let group = _pcp_dummygroup;
 
@@ -243,28 +247,8 @@ Example 2:
       %end;
    run;
 
-   %*--- prep for legend ---;
-   proc sort data=_pcp30;
+   proc sort data=_pcp30 out=_pcp40;
       by &group _pcp_series;
-   run;
-
-   data _pcp35;
-      set _pcp30;
-      by &group _pcp_series;
-      retain _pcp_firstseries;
-      if first.&group then
-         _pcp_firstseries = _pcp_series;
-      if _pcp_series = _pcp_firstseries then do;
-         _pcp_varforlegend = _pcp_var;
-         _pcp_yvalforlegend_dv = _pcp_yval_dv;
-         _pcp_yvalforlegend_pct = _pcp_yval_pct;
-         _pcp_seriesforlegend = &group;
-         output;
-      end;
-   run;
-
-   data _pcp40;
-      set _pcp30 _pcp35;
    run;
 
    %*--- create group format ---;
@@ -283,7 +267,7 @@ Example 2:
 
    data _pcp50;
       set _pcp40;
-      format _pcp_var _pcp_varforlegend varf.;
+      format _pcp_var varf.;
    run;
 
    %*--- add records for datavalues ---;
@@ -306,6 +290,13 @@ Example 2:
       format _pcp_xtext varf.;
    run;
 
+   %*--- clean up almost everything ---;
+   %if &debug in (N NO) %then %do;
+      proc datasets library=work nolist;
+         delete _pcp10 _pcp20 _pcp25 _pcp30 _pcp40 _pcp45 _pcp50 _pcp55;
+      run; quit;
+   %end;
+   
    %*--- calculate offset ---;
    data _null_;
       offset = 0.25*(1/&var_n);
@@ -314,104 +305,98 @@ Example 2:
    %letput(offset);
 
    %*--- set some values pre-plot ---;
-   %local yval yvalforlegend;
-   %if &axistype = PERCENTILES %then %do;
+   %local yval;
+   %if &axistype = PERCENTILES %then
       %let yval = _pcp_yval_pct;
-      %let yvalforlegend = _pcp_yvalforlegend_pct;
-   %end;
-   %else %if &axistype = DATAVALUES %then %do;
+   %else %if &axistype = DATAVALUES %then 
       %let yval = _pcp_yval_dv;
-      %let yvalforlegend = _pcp_yvalforlegend_dv;
-   %end;
 
    %*--- at long last, we plot ---;
-   proc sgplot data=_pcp60 nocycleattrs noautolegend noborder;
-      styleattrs axisextent=data;
-      %*--- primary series plot ---;
-      series x=_pcp_var y=&yval / 
-         group=_pcp_series 
-         %if &group ne _pcp_dummygroup %then %do;
-            grouplc=&group
-         %end;
-         lineattrs=(
-            pattern=solid 
-            %if &group eq _pcp_dummygroup %then %do;
-               color=&linecolor
-            %end;
-            )
-         x2axis
-         ;
-      %*--- copy to get y2axis ---;
-      %if &axistype = PERCENTILES %then %do;
+   %macro _pcp_sgplot;
+      proc sgplot data=_pcp60 nocycleattrs noautolegend noborder;
+         styleattrs axisextent=data;
+         %*--- primary series plot ---;
          series x=_pcp_var y=&yval / 
             group=_pcp_series 
-            %if &group ne _pcp_dummygroup %then %do;
+            grouplc=&group
+            lineattrs=(pattern=solid)
+            x2axis
+            name="series"
+            ;
+         %*--- duplicate series plot to get y2axis ---;
+         %if &axistype = PERCENTILES %then %do;
+            series x=_pcp_var y=&yval / 
+               group=_pcp_series 
                grouplc=&group
+               lineattrs=(pattern=solid)
+               x2axis
+               y2axis
+               ;
+         %end;
+         %*--- tick values added sans tick marks ---;
+         %if &axistype = DATAVALUES %then %do;
+            text x=_pcp_xtext y=_pcp_ytext text=_pcp_texttext /
+               x2axis
+               backlight=1
+               ;
+         %end;
+         %*--- top axis control ---;
+         x2axis 
+            type=discrete 
+            display=(nolabel noline noticks)
+            grid
+            offsetmin=&offset 
+            offsetmax=&offset
+            ;
+         %*--- make left/right the same ---;
+         yaxis
+            %if &axistype = PERCENTILES %then %do;
+               display=(nolabel)
+               grid
             %end;
-            lineattrs=(
-               pattern=solid 
-               %if &group eq _pcp_dummygroup %then %do;
-                  color=&linecolor
-               %end;
-               )
-            x2axis
-            y2axis
+            %else %if &axistype = DATAVALUES %then %do;
+               display=none
+            %end;
             ;
-      %end;
-      %*--- tick values added sans tick marks ---;
-      %if &axistype = DATAVALUES %then %do;
-         text x=_pcp_xtext y=_pcp_ytext text=_pcp_texttext /
-            x2axis
-            backlight=1
+         y2axis
+            %if &axistype = PERCENTILES %then %do;
+               display=(nolabel)
+               grid
+            %end;
+            %else %if &axistype = DATAVALUES %then %do;
+               display=none
+            %end;
             ;
-      %end;
-      %*--- top axis control ---;
-      x2axis 
-         type=discrete 
-         display=(nolabel noline noticks)
-         grid
-         offsetmin=&offset 
-         offsetmax=&offset
-         ;
-      %*--- make left/right the same ---;
-      yaxis
-         %if &axistype = PERCENTILES %then %do;
-            display=(nolabel)
-            grid
+         %*--- legend for grouped plot ---;
+         %if &group ne _pcp_dummygroup %then %do;
+            keylegend "series" /
+               exclude=(" ")
+               noborder
+               type=linecolor
+               ;
          %end;
-         %else %if &axistype = DATAVALUES %then %do;
-            display=none
-         %end;
-         ;
-      y2axis
-         %if &axistype = PERCENTILES %then %do;
-            display=(nolabel)
-            grid
-         %end;
-         %else %if &axistype = DATAVALUES %then %do;
-            display=none
-         %end;
-         ;
-      %*--- reduced version to get a legend ---;
-      %if &group ne _pcp_dummygroup %then %do;
-         series x=_pcp_varforlegend y=&yvalforlegend / 
-            group=_pcp_seriesforlegend 
-            lineattrs=(pattern=1)
-            x2axis
-            name="forlegend"
-            ;
-         keylegend "forlegend" /
-            exclude=(" ")
-            noborder
-            ;
-      %end;
-   run;
+      run;
+   %mend _pcp_sgplot;
    
-   %*--- clean up ---;
-   %if &debug in (N NO) %then %do;
-      proc datasets library=work;
-         delete _pcp:;
-      run; quit;
+   %*--- potentially capture sgplot code ---;
+   %letput(sgplotout);
+   %if %nrbquote(&sgplotout) ne %str() %then %do;
+      %if %sysfunc(fileexist(&sgplotout)) %then %do;
+         data _null_;
+            fname="tempfile";
+            rc=filename(fname,"&sgplotout");
+            if rc=0 and fexist(fname) then
+               rf=fdelete(fname);
+            rc=filename(fname);
+         run;
+      %end;
+      filename mprint "&sgplotout";
+      options mprint mfile;
+      %_pcp_sgplot;
+      filename mprint clear;
    %end;
-
+   %else %do;
+      %_pcp_sgplot;
+   %end;
+   
 %mend parallel;
