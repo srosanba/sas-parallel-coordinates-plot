@@ -68,6 +68,13 @@ Example 2:
          ,debug=no
          ) / minoperator;
 
+   %*--- capture current option settings;
+   %local mprint;
+   %let mprint = %sysfunc(getoption(mprint));
+   %letput(mprint);
+   proc optsave out=_optsave;
+   run;
+   
    %*--- required checks ---;
    %if &data eq %str() %then 
       %put %str(W)ARNING: parameter DATA is required;
@@ -77,6 +84,7 @@ Example 2:
       
    %*--- valid value checks ---;
    %let debug = %upcase(&debug);
+   %letput(debug);
    %if not (&debug in (YES Y NO N)) %then
       %put %str(W)ARNING: unexpected value of &=debug;
       
@@ -290,13 +298,6 @@ Example 2:
       format _pcp_xtext varf.;
    run;
 
-   %*--- clean up almost everything ---;
-   %if &debug in (N NO) %then %do;
-      proc datasets library=work nolist;
-         delete _pcp10 _pcp20 _pcp25 _pcp30 _pcp40 _pcp45 _pcp50 _pcp55;
-      run; quit;
-   %end;
-   
    %*--- calculate offset ---;
    data _null_;
       offset = 0.25*(1/&var_n);
@@ -304,42 +305,34 @@ Example 2:
    run;
    %letput(offset);
 
-   %*--- set some values pre-plot ---;
-   %local yval;
-   %if &axistype = PERCENTILES %then
-      %let yval = _pcp_yval_pct;
-   %else %if &axistype = DATAVALUES %then 
-      %let yval = _pcp_yval_dv;
-
    %*--- at long last, we plot ---;
    %macro _pcp_sgplot;
+   
       proc sgplot data=_pcp60 nocycleattrs noautolegend noborder;
          styleattrs axisextent=data;
-         %*--- primary series plot ---;
-         series x=_pcp_var y=&yval / 
-            group=_pcp_series 
-            grouplc=&group
-            lineattrs=(pattern=solid)
-            x2axis
-            name="series"
-            ;
-         %*--- duplicate series plot to get y2axis ---;
-         %if &axistype = PERCENTILES %then %do;
-            series x=_pcp_var y=&yval / 
+         %*--- helper macro for series plots ---;
+         %macro series;
+            series x=_pcp_var y=_pcp_yval_pct / 
                group=_pcp_series 
                grouplc=&group
                lineattrs=(pattern=solid)
                x2axis
-               y2axis
-               ;
-         %end;
+         %mend series;
+         %*--- primary series plot ---;
+         %series
+            name="series"
+            ;
+         %*--- duplicate series plot to get y2axis ---;
+         %series
+            y2axis
+            ;
          %*--- tick values added sans tick marks ---;
-         %if &axistype = DATAVALUES %then %do;
+         %if &axistype = DATAVALUES %then 
             text x=_pcp_xtext y=_pcp_ytext text=_pcp_texttext /
                x2axis
                backlight=1
                ;
-         %end;
+            ;
          %*--- top axis control ---;
          x2axis 
             type=discrete 
@@ -348,38 +341,31 @@ Example 2:
             offsetmin=&offset 
             offsetmax=&offset
             ;
-         %*--- make left/right the same ---;
-         yaxis
-            %if &axistype = PERCENTILES %then %do;
+         %*--- make yaxis/y2axis the same ---;
+         %macro yaxis;
+            %if &axistype = PERCENTILES %then
                display=(nolabel)
                grid
-            %end;
-            %else %if &axistype = DATAVALUES %then %do;
+               ;
+            %else %if &axistype = DATAVALUES %then 
                display=none
-            %end;
-            ;
-         y2axis
-            %if &axistype = PERCENTILES %then %do;
-               display=(nolabel)
-               grid
-            %end;
-            %else %if &axistype = DATAVALUES %then %do;
-               display=none
-            %end;
-            ;
+               ;
+         %mend yaxis;
+         yaxis %yaxis;
+         y2axis %yaxis;
          %*--- legend for grouped plot ---;
-         %if &group ne _pcp_dummygroup %then %do;
+         %if &group ne _pcp_dummygroup %then 
             keylegend "series" /
                exclude=(" ")
                noborder
                type=linecolor
                ;
-         %end;
+            ;
       run;
+      
    %mend _pcp_sgplot;
    
    %*--- potentially capture sgplot code ---;
-   %letput(sgplotout);
    %if %nrbquote(&sgplotout) ne %str() %then %do;
       %if %sysfunc(fileexist(&sgplotout)) %then %do;
          data _null_;
@@ -393,10 +379,24 @@ Example 2:
       filename mprint "&sgplotout";
       options mprint mfile;
       %_pcp_sgplot;
-      filename mprint clear;
+      options &mprint;
    %end;
    %else %do;
       %_pcp_sgplot;
+   %end;
+
+   %*--- reset options to baseline values ---;
+   proc optload data=_optsave;
+   run;
+      
+   %*--- clean up almost everything ---;
+   %if &debug in (N NO) %then %do;
+      proc datasets library=work nolist;
+         delete 
+            _pcp10 _pcp20 _pcp25 _pcp30 _pcp40 _pcp45 _pcp50 _pcp55
+            _optsave
+            ;
+      run; quit;
    %end;
    
 %mend parallel;
