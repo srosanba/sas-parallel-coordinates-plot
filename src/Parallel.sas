@@ -32,8 +32,9 @@ Optional parmeters:
                of the text statement.
    sgplotout=  Sends SGPLOT code to specified location.
                E.g., sgplotout=C:/temp/sgplot4parallel.sas
-               DETAILS: Hijacks MPRINT and MFILE. Do not attempt to use
-               these global options if using the sgplotout parameter.
+               GOTCHA: The code saving is accomplished via MPRINT and 
+               MFILE. Do not attempt to use MPRINT and MFILE elsewhere in 
+               the calling program or bad things will happen.
    debug    =  To debug or not to debug...
                VALID: yes|no
                DEFAULT: no
@@ -365,17 +366,22 @@ Example 2:
       
    %mend _pcp_sgplot;
    
-   %*--- potentially capture sgplot code ---;
-   %if %nrbquote(&sgplotout) ne %str() %then %do;
-      %if %sysfunc(fileexist(&sgplotout)) %then %do;
+   %*--- macro to delete previous sgplotout code ---;
+   %macro _pcp_delete(path=);
+      %if %sysfunc(fileexist(&path)) %then %do;
          data _null_;
             fname="tempfile";
-            rc=filename(fname,"&sgplotout");
+            rc=filename(fname,"&path");
             if rc=0 and fexist(fname) then
                rf=fdelete(fname);
             rc=filename(fname);
          run;
       %end;
+   %mend _pcp_delete;
+   
+   %*--- potentially capture sgplot code ---;
+   %if %nrbquote(&sgplotout) ne %str() %then %do;
+      %_pcp_delete(path=&sgplotout);
       filename mprint "&sgplotout";
       options mprint mfile;
       %_pcp_sgplot;
