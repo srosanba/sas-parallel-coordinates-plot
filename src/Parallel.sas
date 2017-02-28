@@ -70,9 +70,6 @@ Example 2:
          ) / minoperator;
 
    %*--- capture current option settings;
-   %local mprint;
-   %let mprint = %sysfunc(getoption(mprint));
-   %letput(mprint);
    proc optsave out=_optsave;
    run;
    
@@ -385,7 +382,6 @@ Example 2:
       filename mprint "&sgplotout";
       options mprint mfile;
       %_pcp_sgplot;
-      options &mprint;
    %end;
    %else %do;
       %_pcp_sgplot;
