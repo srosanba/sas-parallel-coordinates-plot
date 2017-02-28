@@ -31,11 +31,29 @@
    2015-07-16  Shane Rosanbalm   Original program. 
    2016-03-23  Shane Rosanbalm   Defend against macro variables beginning with SYS.   
    2016-12-12  Shane Rosanbalm   Defend against apostrophes in macro values.
+   2017-02-24  Shane Rosanbalm   Defend against empty variables.
+   2017-02-27  Shane Rosanbalm   Change to data _null_ to avoid %nrbquote.
+                                 Make nomprint and nonotes statements conditional.
 
 *-----------------------------------------------------------------------------------*/
 
 %macro letput(_mvar);
 
+   %*--- turn off mprint ---;
+   %local op_mprint;
+   %let op_mprint = %sysfunc(getoption(mprint));
+   %if &op_mprint = MPRINT %then
+      options nomprint;
+      ;
+     
+   %*--- turn off notes ---;
+   %local op_notes;
+   %let op_notes = %sysfunc(getoption(notes));
+   %if &op_notes = NOTES %then
+      options nonotes;
+      ;
+   
+   %*--- only move forward if macro variable exists ---;
    %if %symexist(&_mvar) eq 1 %then %do;
 
       %let issys = 0;
@@ -55,17 +73,30 @@
          
       %end;
       
-      %*--- only attempt to left-justify non-AUTOMATIC ---;
+      %*--- only attempt to strip non-AUTOMATIC ---;
       
-      %if &issys = 0 %then 
-         %let &_mvar = %nrbquote(%sysfunc(strip(&&&_mvar)));
+      %if &issys = 0 %then %do;
+         data _null_;
+            _mvar = strip("&&&_mvar");
+            call symputx("&_mvar",_mvar);
+         run;
+      %end;
       
       %*--- write to log, indented and blue and bracketed ---;   
       
+      options notes;
       %put NOTE- &_mvar = [%nrbquote(&&&_mvar)];
-
+      
    %end;
 
-   %else %put NOTE- Macro variable %upcase(&_mvar) does not exist.;
+   %else %do;
+   
+      options notes;
+      %put NOTE- Macro variable %upcase(&_mvar) does not exist.;
+      
+   %end;
+   
+   %*--- restore options ---;
+   options &op_mprint &op_notes;
 
 %mend letput;

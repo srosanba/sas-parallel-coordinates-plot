@@ -82,7 +82,6 @@ Example 2:
       
    %*--- valid value checks ---;
    %let debug = %upcase(&debug);
-   %letput(debug);
    %if not (&debug in (YES Y NO N)) %then
       %put %str(W)ARNING: unexpected value of &=debug;
       
