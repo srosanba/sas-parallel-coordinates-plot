@@ -46,7 +46,7 @@ Example 1:
       ,group=species
       );
    Result for this call:
-      https://github.com/srosanba/sas-parallelcoordinatesplot/raw/master/img/iris_by_percentiles.png
+      https://github.com/srosanba/sas-parallel-coordinates-plot/raw/master/img/iris_by_percentiles.png
 
 Example 2:
    %parallel
@@ -56,7 +56,7 @@ Example 2:
       ,axistype=datavalues
       );
    Result for this call:
-      https://github.com/srosanba/sas-parallelcoordinatesplot/raw/master/img/iris_by_datavalues.png
+      https://github.com/srosanba/sas-parallel-coordinates-plot/raw/master/img/iris_by_datavalues.png
 
 --------------------------------------------------------------------------------------------------*/
 
@@ -213,13 +213,13 @@ Example 2:
    %*--- standardize results based on start/end (dv) and min/max (pct) ---;
    %do i = 1 %to &var_n;
 
-      data _pcp25;
+      data _pcp25_&i;
          set _pcp20;
          where _pcp_var = &i;
       run;
 
       %axisorder
-         (data=_pcp25
+         (data=_pcp25_&i
          ,var=_pcp_yval
          );
 
@@ -253,31 +253,22 @@ Example 2:
       %end;
    run;
 
-   proc sort data=_pcp30 out=_pcp40;
-      by &group _pcp_series;
-   run;
-
    %*--- create group format ---;
    proc sql noprint;
-      create   table _pcp45 as
+      create   table _pcp35 as
       select   distinct
                "varf" as fmtname,
                _pcp_var as start,
                _pcp_varc as label
-      from     _pcp40
+      from     _pcp30
       ;
    quit;
 
-   proc format cntlin=_pcp45;
-   run;
-
-   data _pcp50;
-      set _pcp40;
-      format _pcp_var varf.;
+   proc format cntlin=_pcp35;
    run;
 
    %*--- add records for datavalues ---;
-   data _pcp55;
+   data _pcp40;
       %do i = 1 %to &var_n;
          _pcp_xtext = &i;
          do _pcp_yloop = &&AxisList&i;
@@ -291,26 +282,24 @@ Example 2:
       %end;
    run;
 
-   data _pcp60;
-      set _pcp50 _pcp55;
-      format _pcp_xtext varf.;
+   data _pcp50;
+      set _pcp30 _pcp40;
+      format _pcp_var _pcp_xtext varf.;
    run;
-
-   %*--- calculate offset ---;
-   data _null_;
-      offset = 0.25*(1/&var_n);
-      call symputx("offset",offset);
-   run;
-   %letput(offset);
 
    %*--- at long last, we plot ---;
    %macro _pcp_sgplot;
    
-      proc sgplot data=_pcp60 nocycleattrs noautolegend noborder;
+      proc sgplot data=_pcp50 nocycleattrs noautolegend noborder;
          styleattrs axisextent=data;
          %*--- helper macro for series plots ---;
          %macro series;
-            series x=_pcp_var y=_pcp_yval_pct / 
+            %local yvar;
+            %if &axistype = PERCENTILES %then 
+               %let yvar = _pcp_yval_pct;
+            %else %if &axistype = DATAVALUES %then
+               %let yvar = _pcp_yval_dv;
+            series x=_pcp_var y=&yvar / 
                group=_pcp_series 
                grouplc=&group
                lineattrs=(pattern=solid)
@@ -333,11 +322,10 @@ Example 2:
             ;
          %*--- top axis control ---;
          x2axis 
-            type=discrete 
+            values=(%do i = 1 %to &var_n; &i %end;)
             display=(nolabel noline noticks)
             grid
-            offsetmin=&offset 
-            offsetmax=&offset
+            fitpolicy=staggerrotate
             ;
          %*--- make yaxis/y2axis the same ---;
          %macro yaxis;
@@ -395,7 +383,11 @@ Example 2:
    %if &debug in (N NO) %then %do;
       proc datasets library=work nolist;
          delete 
-            _pcp10 _pcp20 _pcp25 _pcp30 _pcp40 _pcp45 _pcp50 _pcp55
+            _pcp10 _pcp20 
+            %do i = 1 %to &var_n;
+               _pcp25_&i
+            %end;
+            _pcp30 _pcp35 _pcp40 _pcp45
             _optsave
             ;
       run; quit;
