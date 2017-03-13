@@ -69,10 +69,29 @@ Example 2:
          ,debug=no
          ) / minoperator;
 
-   %*--- capture current option settings;
+   %*--- capture current option settings ---;
    proc optsave out=_optsave;
    run;
    
+   %*--- version check ---;
+   %if &sysver < 9.4 %then %do;
+      %put %str(W)ARNING: version issue. You are using &sysver..;
+      %put %str(W)ARNING: This macro uses features from 9.4.;
+      %put %str(W)ARNING: Expect %str(E)RROR messages below.;
+   %end;
+   %else %if &sysver = 9.4 %then %do;
+      data _null_;
+         sysvlong = "&sysvlong";
+         m = index(sysvlong,"M");
+         maint = substr(sysvlong,m+1,1);
+         if maint < 2 then do;
+            put "W" "ARNING: version issue. You are using " sysvlong +(-1) ".";
+            put "W" "ARNING: This macro uses features from 9.4M2.";
+            put "W" "ARNING: Expect E" "RROR messages below.";
+         end;
+      run;
+   %end;
+      
    %*--- required checks ---;
    %if &data eq %str() %then 
       %put %str(W)ARNING: parameter DATA is required;
@@ -300,7 +319,7 @@ Example 2:
                %let yvar = _pcp_yval_dv;
             series x=_pcp_var y=&yvar / 
                group=_pcp_series 
-               grouplc=&group
+               grouplc=&group /* 9.4m2 feature */
                lineattrs=(pattern=solid)
                x2axis
          %mend series;
@@ -309,10 +328,12 @@ Example 2:
             name="series"
             ;
          %*--- duplicate series plot to get y2axis ---;
-         %series
-            y2axis
-            ;
-         %*--- tick values added sans tick marks ---;
+         %if &axistype = PERCENTILES %then %do;
+            %series
+               y2axis
+               ;
+         %end;
+         %*--- tick values added: 9.4 feature ---;
          %if &axistype = DATAVALUES %then 
             text x=_pcp_xtext y=_pcp_ytext text=_pcp_texttext /
                x2axis
@@ -337,13 +358,15 @@ Example 2:
                ;
          %mend yaxis;
          yaxis %yaxis;
-         y2axis %yaxis;
+         %if &axistype = PERCENTILES %then %do;
+            y2axis %yaxis;
+         %end;
          %*--- legend for grouped plot ---;
          %if &group ne _pcp_dummygroup %then 
             keylegend "series" /
                exclude=(" ")
                noborder
-               type=linecolor
+               type=linecolor /* 9.4m2 feature */
                ;
             ;
       run;
