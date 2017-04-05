@@ -40,7 +40,7 @@ Optional parmeters:
                DEFAULT: no
 
 Example 1:
-   %parallel
+   %parallelplot
       (data=sashelp.iris
       ,var=sepallength sepalwidth petallength petalwidth
       ,group=species
@@ -49,7 +49,7 @@ Example 1:
       https://github.com/srosanba/sas-parallel-coordinates-plot/raw/master/img/iris_by_percentiles.png
 
 Example 2:
-   %parallel
+   %parallelplot
       (data=sashelp.iris
       ,var=sepallength sepalwidth petallength petalwidth
       ,group=species
@@ -60,7 +60,7 @@ Example 2:
 
 --------------------------------------------------------------------------------------------------*/
 
-%macro parallel
+%macro parallelplot
          (data=
          ,var=
          ,group=
@@ -415,4 +415,4 @@ Example 2:
       run; quit;
    %end;
    
-%mend parallel;
+%mend parallelplot;

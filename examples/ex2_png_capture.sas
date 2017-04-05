@@ -8,7 +8,7 @@ options sasautos=("&repo" sasautos);
 *--- capture iris output as png ---;
 ods listing gpath="&prog";
 ods graphics / reset=all imagename="png_capture";
-%parallel
+%parallelplot
    (data=sashelp.iris
    ,var=sepallength sepalwidth petallength petalwidth
    ,group=species

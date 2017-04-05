@@ -12,7 +12,7 @@ options sasautos=("&repo" sasautos);
 ods listing gpath="&prog";
 ods graphics / reset=all imagename="junk";
 
-%parallel
+%parallelplot
    (data=sashelp.iris
    ,var=sepallength sepalwidth petallength petalwidth
    ,group=species

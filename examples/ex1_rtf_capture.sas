@@ -8,7 +8,7 @@ options sasautos=("&repo" sasautos);
 *--- capture iris output as rtf ---;
 ods listing close;
 ods rtf file="&prog/iris_percentiles.rtf";
-%parallel
+%parallelplot
    (data=sashelp.iris
    ,var=sepallength sepalwidth petallength petalwidth
    ,group=species
