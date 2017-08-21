@@ -310,29 +310,20 @@ Example 2:
    
       proc sgplot data=_pcp50 nocycleattrs noautolegend noborder;
          styleattrs axisextent=data;
-         %*--- helper macro for series plots ---;
-         %macro series;
-            %local yvar;
-            %if &axistype = PERCENTILES %then 
-               %let yvar = _pcp_yval_pct;
-            %else %if &axistype = DATAVALUES %then
-               %let yvar = _pcp_yval_dv;
-            series x=_pcp_var y=&yvar / 
-               group=_pcp_series 
-               grouplc=&group /* 9.4m2 feature */
-               lineattrs=(pattern=solid)
-               x2axis
-         %mend series;
-         %*--- primary series plot ---;
-         %series
+         %*--- pick y variable ---;
+         %local yvar;
+         %if &axistype = PERCENTILES %then 
+            %let yvar = _pcp_yval_pct;
+         %else %if &axistype = DATAVALUES %then
+            %let yvar = _pcp_yval_dv;
+         %*--- series plot ---;
+         series x=_pcp_var y=&yvar / 
+            group=_pcp_series 
+            grouplc=&group /* 9.4m2 feature */
+            lineattrs=(pattern=solid)
+            x2axis
             name="series"
             ;
-         %*--- duplicate series plot to get y2axis ---;
-         %if &axistype = PERCENTILES %then %do;
-            %series
-               y2axis
-               ;
-         %end;
          %*--- tick values added: 9.4 feature ---;
          %if &axistype = DATAVALUES %then 
             text x=_pcp_xtext y=_pcp_ytext text=_pcp_texttext /
@@ -347,20 +338,17 @@ Example 2:
             grid
             fitpolicy=staggerrotate
             ;
-         %*--- make yaxis/y2axis the same ---;
-         %macro yaxis;
+         %*--- yaxis control ---;
+         yaxis 
             %if &axistype = PERCENTILES %then
                display=(nolabel)
                grid
+               refticks=(values)
                ;
             %else %if &axistype = DATAVALUES %then 
                display=none
                ;
-         %mend yaxis;
-         yaxis %yaxis;
-         %if &axistype = PERCENTILES %then %do;
-            y2axis %yaxis;
-         %end;
+            ;
          %*--- legend for grouped plot ---;
          %if &group ne _pcp_dummygroup %then 
             keylegend "series" /
