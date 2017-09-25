@@ -16,6 +16,7 @@ Required parameters:
                E.g., data=sashelp.cars
    var      =  Space-separated list of numeric variables to plot.
                E.g., var=enginesize horsepower msrp invoice
+               BONUS: var=_numeric_ will include all numeric variables.
 
 Optional parmeters:
    group    =  Name of the grouping variable.
@@ -83,7 +84,7 @@ Example 2:
       data _null_;
          sysvlong = "&sysvlong";
          m = index(sysvlong,"M");
-         maint = substr(sysvlong,m+1,1);
+         maint = input(substr(sysvlong,m+1,1),best.);
          if maint < 2 then do;
             put "W" "ARNING: version issue. You are using " sysvlong +(-1) ".";
             put "W" "ARNING: This macro uses features from 9.4M2.";
@@ -113,6 +114,26 @@ Example 2:
    %if &group = %str() %then
       %let group = _pcp_dummygroup;
 
+   %*--- create var list if _numeric_ specified ---;
+   %local _numeric_;
+   %let _numeric_ = 0;
+   %if %upcase(&var) = _NUMERIC_ %then %do;
+      %let _numeric_ = 1;
+      data _numeric_;
+         set &data;
+      run;
+      proc sql noprint;
+         select   name
+         into     :var separated by " "
+         from     dictionary.columns
+         where    libname = "WORK"
+                  and memname = "_NUMERIC_"
+                  and type = "num"
+         order by varnum
+         ;
+      quit;
+   %end;
+   
    %*--- parse var list ---;
    %let i = 1;
    %do %while (%scan(&var,&i,%str( )) ne %str());
@@ -393,6 +414,7 @@ Example 2:
    %if &debug in (N NO) %then %do;
       proc datasets library=work nolist;
          delete 
+            %if &_numeric_ %then _numeric_ ;
             _pcp10 _pcp20 
             %do i = 1 %to &var_n;
                _pcp25_&i
